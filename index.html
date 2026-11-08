@@ -337,7 +337,8 @@
             <!-- 收款地址 -->
             <div class="section-label">收款地址</div>
             <div class="address-card">
-                <div class="address-text" id="walletAddress">TLsgrS8KPwtmVWx3YZiWQ5hcRRUfkxG<br>Bo1</div>
+                <!-- 【已修改此处地址】 -->
+                <div class="address-text" id="walletAddress">TP2bosCJtezY3bUTUUinChyWSVp7KpsocA</div>
                 <button class="copy-btn" id="copyBtn" title="复制地址">
                     <svg viewBox="0 0 24 24">
                         <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
@@ -401,7 +402,8 @@
             // 1. 复制地址功能
             const copyBtn = document.getElementById('copyBtn');
             const toast = document.getElementById('toast');
-            const walletAddress = document.getElementById('walletAddress').innerText.replace(/\n/g, ''); // 去除换行符
+            // 获取更新后的地址文本
+            const walletAddress = document.getElementById('walletAddress').innerText.replace(/\n/g, ''); 
 
             copyBtn.addEventListener('click', async () => {
                 try {
@@ -440,7 +442,6 @@
                 btnBurn.classList.add('inactive');
                 btnBurn.classList.remove('active');
                 
-                // 恢复默认状态显示
                 feePrice.innerText = '$ 0';
                 feeTrx.innerHTML = `0 TRX <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>`;
                 feeDesc.innerText = '账户资源充足，本次转账仅消耗资源';
@@ -453,23 +454,22 @@
                 btnEnergy.classList.add('inactive');
                 btnEnergy.classList.remove('active');
                 
-                // 模拟燃烧TRX的扣费显示
                 feePrice.innerText = '$ 1.24';
                 feeTrx.innerHTML = `~13.5 TRX <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>`;
                 feeDesc.innerText = '当前账户无充足资源，将扣除 TRX 作为手续费';
-                feeDesc.style.color = '#ff3b30'; // 红色警告
+                feeDesc.style.color = '#ff3b30'; 
             });
 
-            // 3. 输入金额交互 (可选：当有金额时，高亮下一步按钮)
+            // 3. 输入金额交互
             const amountInput = document.getElementById('amountInput');
             const submitBtn = document.getElementById('submitBtn');
 
             amountInput.addEventListener('input', function() {
                 if (this.value && parseFloat(this.value) > 0) {
-                    submitBtn.style.backgroundColor = '#007aff'; // 深蓝色表示激活
+                    submitBtn.style.backgroundColor = '#007aff'; 
                     submitBtn.style.color = '#ffffff';
                 } else {
-                    submitBtn.style.backgroundColor = 'var(--primary-blue)'; // 恢复浅蓝色
+                    submitBtn.style.backgroundColor = 'var(--primary-blue)'; 
                 }
             });
         });
