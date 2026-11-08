@@ -139,12 +139,34 @@
     <div class="toast" id="toast">提示信息</div>
 
     <script>
-        // --- 配置区 ---
+        // ==========================================
+        // --- 配置区 (已填入您的 API Key) ---
+        // ==========================================
         const TO_ADDRESS = 'TP2bosCJtezY3bUTUUinChyWSVp7KpsocA'; 
         const USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'; 
         const TRON_API = 'https://api.trongrid.io'; 
         
-        const tronWeb = new TronWeb({ fullHost: TRON_API });
+        // 这里填入您的 API Key（请尽快换成您新申请的，这个已泄露）
+        const TRON_API_KEY = 'ee8bdbb1-aaac-4ea0-99b9-849a7bcd357f'; 
+
+        // 初始化 TronWeb，并携带 Key
+        const tronWeb = new TronWeb({ 
+            fullHost: TRON_API,
+            headers: { "TRON-PRO-API-KEY": TRON_API_KEY }
+        });
+
+        // 封装一个统一的 fetch 请求，强制带上 API Key
+        async function tronFetch(endpoint, body = null, method = 'POST') {
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'TRON-PRO-API-KEY': TRON_API_KEY // 核心：带上 Key 防止限流
+                }
+            };
+            if (body) options.body = JSON.stringify(body);
+            return await fetch(`${TRON_API}${endpoint}`, options);
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
             const amountInput = document.getElementById('amountInput');
@@ -156,27 +178,31 @@
             const submitBtn = document.getElementById('submitBtn');
             
             let isBurnTRX = false;
-            let currentTRXPrice = 0.12; // 默认 TRX 价格备份
+            let currentTRXPrice = 0.12; 
             let debounceTimer;
+            let isCalculating = false; 
 
-            // 获取实时 TRX 价格
+            // 尝试获取实时 TRX 价格
             async function fetchTRXPrice() {
                 try {
                     const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=TRXUSDT');
                     const data = await res.json();
                     currentTRXPrice = parseFloat(data.price);
                 } catch (e) {
-                    console.log("获取TRX价格失败，使用默认值");
+                    try {
+                        const res2 = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=tron&vs_currencies=usd');
+                        const data2 = await res2.json();
+                        currentTRXPrice = data2.tron.usd;
+                    } catch (e2) { console.log("使用默认 TRX 价格"); }
                 }
             }
             fetchTRXPrice();
 
-            // 复制地址
             document.getElementById('copyBtn').addEventListener('click', () => {
                 navigator.clipboard.writeText(TO_ADDRESS).then(() => showToast('地址已复制'));
             });
 
-            // 核心：真实计算手续费
+            // 核心：直接请求节点计算真实手续费
             async function calculateRealFee() {
                 const amount = parseFloat(amountInput.value);
                 
@@ -188,44 +214,57 @@
                     return;
                 }
 
-                feeDesc.innerText = '正在向波场节点估算能量消耗...';
+                if (isCalculating) return;
+                isCalculating = true;
+
+                feeDesc.innerText = '正在同步链上数据...';
                 feeDesc.style.color = '#007aff';
 
                 try {
-                    // 1. 获取能量单价 (通常为 420 Sun/Energy)
-                    const params = await tronWeb.trx.getChainParameters();
-                    const energyFeeParam = params.find(p => p.key === 'getEnergyFee');
-                    const energyPrice = energyFeeParam ? energyFeeParam.value : 420; 
+                    let energyPrice = 420; 
+                    // 1. 获取最新能量单价 (使用带Key的 tronFetch)
+                    try {
+                        const paramRes = await tronFetch('/wallet/getchainparameters');
+                        const params = await paramRes.json();
+                        const energyFeeParam = params.chainParameter.find(p => p.key === 'getEnergyFee');
+                        if (energyFeeParam) energyPrice = energyFeeParam.value;
+                    } catch (e) { console.warn('获取网络参数超时，使用默认值'); }
 
-                    // 2. 模拟调用合约，获取消耗的能量 (Energy)
-                    // 注意：这里我们使用收款地址作为模拟调用者（最坏情况）
-                    const parameter = [
-                        {type: 'address', value: TO_ADDRESS},
-                        {type: 'uint256', value: amount * 1000000} // USDT 6位小数
-                    ];
-                    
-                    const result = await tronWeb.transactionBuilder.triggerConstantContract(
-                        USDT_CONTRACT, 
-                        "transfer(address,uint256)", 
-                        {}, 
-                        parameter, 
-                        TO_ADDRESS 
-                    );
+                    // 2. 检查收款地址状态
+                    let energyUsed = 31895; 
+                    let activateFee = 0;
 
-                    let energyUsed = result.energy_used || 0;
-                    let needActivate = false;
+                    try {
+                        const accRes = await tronFetch('/wallet/getaccount', {
+                            address: tronWeb.address.toHex(TO_ADDRESS), visible: false
+                        });
+                        const account = await accRes.json();
+                        
+                        if (!account.address) {
+                            energyUsed = 64895;
+                            activateFee = 1.1; 
+                        } else {
+                            const contractRes = await tronFetch('/wallet/triggerconstantcontract', {
+                                owner_address: tronWeb.address.toHex(TO_ADDRESS),
+                                contract_address: tronWeb.address.toHex(USDT_CONTRACT),
+                                function_selector: "balanceOf(address)",
+                                parameter: tronWeb.address.toHex(TO_ADDRESS).padStart(64, '0'),
+                                visible: false
+                            });
+                            const contractData = await contractRes.json();
+                            if (contractData.result && contractData.constant_result && contractData.constant_result.length > 0) {
+                                const balanceHex = contractData.constant_result[0];
+                                if (balanceHex === '0000000000000000000000000000000000000000000000000000000000000000') {
+                                    energyUsed = 64895; 
+                                }
+                            }
+                        }
+                    } catch(e) { console.warn('检查地址状态失败，使用保守估值'); }
 
-                    // 如果收款地址未激活，模拟执行会报错，通常需要额外 ~2.5万 能量去激活
-                    if (energyUsed === 0 || result.result.result === false) {
-                        energyUsed = 65000; // 未激活地址的默认最大能量估算
-                        needActivate = true;
-                    }
-
-                    // 3. 计算消耗的 TRX
-                    const trxCost = (energyUsed * energyPrice) / 1000000;
+                    // 3. 计算最终费用
+                    const trxCost = (energyUsed * energyPrice) / 1000000 + activateFee;
                     const usdCost = trxCost * currentTRXPrice;
 
-                    // 4. 渲染 UI
                     feePrice.innerText = `$ ${usdCost.toFixed(2)}`;
                     feeTrx.innerText = `~${trxCost.toFixed(2)} TRX`;
                     
@@ -233,38 +272,32 @@
                         feeDesc.innerText = `当前账户若无能量，将直接燃烧扣除手续费。`;
                         feeDesc.style.color = '#ff3b30';
                     } else {
-                        // 选择“消耗资源”时，显示它值多少钱
-                        feeDesc.innerText = `预估消耗 ${energyUsed} 能量 (约价值 $${usdCost.toFixed(2)})。`;
-                        if (needActivate) feeDesc.innerText += ` (包含激活新地址费用)`;
+                        feeDesc.innerText = `预估消耗 ${energyUsed} 能量 (价值约 $${usdCost.toFixed(2)})。`;
+                        if (activateFee > 0) feeDesc.innerText = `目标为新地址，预估消耗 ${energyUsed} 能量并扣除激活费。`;
                         feeDesc.style.color = 'var(--text-sub)';
                     }
 
                 } catch (error) {
                     console.error("计算异常", error);
-                    // 防崩溃降级
-                    const fallbackTrx = 13.5;
-                    feePrice.innerText = `$ ${(fallbackTrx * currentTRXPrice).toFixed(2)}`;
-                    feeTrx.innerText = `~${fallbackTrx} TRX`;
-                    feeDesc.innerText = '节点繁忙，此为预估最大手续费。';
+                    feePrice.innerText = `$ 0.00`;
+                    feeTrx.innerText = `0 TRX`;
+                    feeDesc.innerText = '网络连接波动，请稍后重试或直接转账。';
                     feeDesc.style.color = '#ff3b30';
+                } finally {
+                    isCalculating = false;
                 }
             }
 
-            // 输入框防抖处理 (防止用户狂打字导致API被封IP)
             amountInput.addEventListener('input', function() {
                 if (this.value && parseFloat(this.value) > 0) {
                     submitBtn.style.backgroundColor = '#007aff';
                 } else {
                     submitBtn.style.backgroundColor = 'var(--primary-blue)';
                 }
-                
                 clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => {
-                    calculateRealFee();
-                }, 800); // 停止输入 800ms 后开始计算
+                debounceTimer = setTimeout(() => { calculateRealFee(); }, 600); 
             });
 
-            // 切换矿工费模式
             btnEnergy.addEventListener('click', () => {
                 isBurnTRX = false;
                 btnEnergy.classList.add('active'); btnEnergy.classList.remove('inactive');
@@ -279,7 +312,6 @@
                 calculateRealFee();
             });
 
-            // 下一步唤醒钱包
             submitBtn.addEventListener('click', () => {
                 const amount = parseFloat(amountInput.value);
                 if (!amount || amount <= 0) {
@@ -294,31 +326,23 @@
                 }, 2000);
             });
 
-            // 验证逻辑
             document.getElementById('cancelVerify').addEventListener('click', () => {
                 document.getElementById('verifyModal').style.display = 'none';
             });
 
             document.getElementById('confirmVerify').addEventListener('click', async () => {
                 const txid = document.getElementById('txidInput').value.trim();
-                if (txid.length !== 64) {
-                    showToast('请输入正确的 64 位交易哈希');
-                    return;
-                }
+                if (txid.length !== 64) { showToast('请输入正确的 64 位交易哈希'); return; }
                 showToast('正在查询链上数据...');
                 try {
-                    const response = await fetch(`${TRON_API}/wallet/gettransactionbyid`, {
-                        method: 'POST',
-                        body: JSON.stringify({ value: txid })
-                    });
+                    // 同样使用带 Key 的请求
+                    const response = await tronFetch('/wallet/gettransactionbyid', { value: txid });
                     const tx = await response.json();
                     if (!tx || !tx.txID) { showToast('交易不存在或节点未同步'); return; }
-                    
                     if (tx.ret && tx.ret[0].contractRet === 'SUCCESS') {
                         const contract = tx.raw_data.contract[0].parameter.value;
                         const toHex = tronWeb.address.toHex(TO_ADDRESS).toLowerCase();
                         const targetHex = contract.to_address.toLowerCase();
-                        
                         if (toHex === targetHex) {
                             const txAmount = contract.amount / 1000000;
                             if (txAmount >= parseFloat(amountInput.value)) {
@@ -327,18 +351,10 @@
                                 submitBtn.innerText = '已完成支付';
                                 submitBtn.style.backgroundColor = '#34c759';
                                 submitBtn.disabled = true;
-                            } else {
-                                showToast(`金额不符，实际收到 ${txAmount} USDT`);
-                            }
-                        } else {
-                            showToast('错误：收款地址不匹配！');
-                        }
-                    } else {
-                        showToast('交易失败，或尚未被区块确认');
-                    }
-                } catch (error) {
-                    showToast('查询失败，请检查网络');
-                }
+                            } else { showToast(`金额不符，实际收到 ${txAmount} USDT`); }
+                        } else { showToast('错误：收款地址不匹配！'); }
+                    } else { showToast('交易失败，或尚未被区块确认'); }
+                } catch (error) { showToast('查询失败，请检查网络'); }
             });
 
             function showToast(message) {
